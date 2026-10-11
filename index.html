@@ -30,8 +30,8 @@
             <div class="flex items-center space-x-3">
                 <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhZjGiHa6jb-uqxRfdARt7NCCUrYTRw6o4DyQvAjZJ0tnKLOO6WcwrKY5WM_l8CnMSZZ9mjoSBnKXWnGd4ECPDnanEetVokHEBHSsVcvaw2QquEhN3_beaKQa54588M8v1OrVj7CrPkft3eYQ7UgBLORI7hI1hCG5EFWs8O_0dJlj37slq0UPdn8zwgpMeE/s1600/TPQ%20Al-Mubarok%20LOGO.png" alt="Logo TPQ" class="w-10 h-10 bg-white rounded-full p-1">
                 <div>
-                    <h1 class="text-lg font-bold leading-tight">Buku Besar Infaq Santri</h1>
-                    <p class="text-xs text-emerald-200">TPQ & MADIN Al-Mubarok (Portal Si Barok)</p>
+                    <h1 class="text-lg font-bold leading-tight">Buku Besar Infaq</h1>
+                    <p class="text-xs text-emerald-200">TPQ & MADIN Al-Mubarok</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
@@ -114,7 +114,7 @@
                             <th class="px-4 py-3">No. WA Wali</th>
                             <th class="px-4 py-3">Nominal Infaq</th>
                             <th class="px-4 py-3 text-center">Status</th>
-                            <th class="px-4 py-3 text-center no-print">Aksi Admin Ustadzah</th>
+                            <th class="px-4 py-3 text-center no-print">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="santriTableBody" class="divide-y divide-gray-100">
@@ -346,4 +346,141 @@
                         <td class="px-4 py-3 text-center no-print" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-center gap-2">
                                 ${isLunas ? `
-                                    <button onclick="batalBayar('${s.id}', '${s.name}')" title="Batalkan / Reset Lunas" class="bg-gray-100 hover:bg-rose-100 text-rose-60
+                                    <button onclick="batalBayar('${s.id}', '${s.name}')" title="Batalkan / Reset Lunas" class="bg-gray-100 hover:bg-rose-100 text-rose-600 p-2 rounded-lg text-xs transition">
+                                        <i class="fas fa-undo"></i> Reset
+                                    </button>
+                                ` : `
+                                    <button onclick="openModal('${s.id}', '${s.name}')" title="Input Lunas Langsung" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                                        <i class="fas fa-check mr-1"></i> Tandai Lunas
+                                    </button>
+                                    <button onclick="tagihWA('${s.parentPhone}', '${s.name}')" title="Kirim Tagihan WA" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs transition">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                `}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // Modal Pop-up Detail Santri
+        function showDetailModal(id) {
+            const santri = santriList.find(s => s.id === id);
+            if (!santri) return;
+
+            const photoUrl = santri.photo || (santri.gender === 'Perempuan' ? avatarPerempuan : avatarLaki);
+
+            document.getElementById('detailPhoto').src = photoUrl;
+            document.getElementById('detailName').innerText = santri.name || '-';
+            document.getElementById('detailClass').innerText = santri.class || '-';
+            document.getElementById('detailNis').innerText = santri.nis || '-';
+            document.getElementById('detailJilid').innerText = santri.jilid || '-';
+            document.getElementById('detailGender').innerText = santri.gender || '-';
+            document.getElementById('detailTeacher').innerText = santri.teacher || '-';
+            document.getElementById('detailEmail').innerText = santri.parentEmail || '-';
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        // Modal Controls Pembayaran
+        function openModal(id, name) {
+            document.getElementById('modalStudentId').value = id;
+            document.getElementById('modalStudentName').value = name;
+            document.getElementById('bayarModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('bayarModal').classList.add('hidden');
+        }
+
+        // Langsung Simpan Pembayaran oleh Ustadzah Super Admin
+        async function simpanPembayaran(e) {
+            e.preventDefault();
+            const id = document.getElementById('modalStudentId').value;
+            const nominal = document.getElementById('modalNominal').value;
+            const metode = document.getElementById('modalMetode').value;
+            const catatan = document.getElementById('modalCatatan').value;
+            const periode = getPeriodeAktif();
+
+            try {
+                const batch = db.batch();
+                const studentRef = db.collection('students').doc(id);
+                const paymentRef = studentRef.collection('payments').doc(periode);
+
+                batch.update(studentRef, {
+                    infaqStatus: true,
+                    paymentMethod: metode,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                batch.set(paymentRef, {
+                    amount: parseInt(nominal),
+                    month: periode,
+                    method: metode,
+                    note: catatan,
+                    date: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await batch.commit();
+
+                closeModal();
+                Swal.fire('Berhasil', 'Pembayaran infaq berhasil dicatat lunas!', 'success');
+            } catch (err) {
+                Swal.fire('Error', 'Gagal menyimpan pembayaran: ' + err.message, 'error');
+            }
+        }
+
+        // Reset Status Lunas
+        async function batalBayar(id, name) {
+            const res = await Swal.fire({
+                title: 'Reset Pembayaran?',
+                text: `Status infaq ananda ${name} akan dikembalikan ke Belum Bayar.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Reset'
+            });
+
+            if (res.isConfirmed) {
+                try {
+                    await db.collection('students').doc(id).update({
+                        infaqStatus: false,
+                        paymentMethod: firebase.firestore.FieldValue.delete()
+                    });
+                    Swal.fire('Berhasil', 'Status pembayaran telah di-reset.', 'success');
+                } catch (err) {
+                    Swal.fire('Error', err.message, 'error');
+                }
+            }
+        }
+
+        // Pesan WA Pengingat
+        function tagihWA(phone, name) {
+            if (!phone) {
+                Swal.fire('Peringatan', 'Nomor WA wali tidak ditemukan.', 'warning');
+                return;
+            }
+            let formattedPhone = phone.replace(/[^0-9]/g, '');
+            if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.substring(1);
+
+            const msg = `Assalamu'alaikum Wr. Wb.\n\n` +
+                        `Kepada Yth. Wali Santri dari Ananda *${name}*,\n` +
+                        `Pemberitahuan administrasi Infaq TPQ & MADIN Al-Mubarok periode *${getPeriodeAktif()}*.\n\n` +
+                        `Mohon berkenan untuk melakukan pembayaran infaq bulanan.\n` +
+                        `Terima kasih atas perhatian dan kerja samanya. Jazakumullah Khairan Katsiran.\n\n` +
+                        `_Ustadzah Super Admin TPQ Al-Mubarok_`;
+
+            window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        // Init Data Load
+        refreshData();
+    </script>
+</body>
+</html>
