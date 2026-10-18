@@ -318,7 +318,7 @@
             let html = '';
             filtered.forEach((s, index) => {
                 const isLunas = s.infaqStatus === true || s.infaqStatus === 'Lunas';
-                const safeName = (s.name || '-').replace(/'/g, "’").replace(/"/g, "”");
+                const safeName = (s.name || '-').replace(/'/g, "’");
                 const statusBadge = isLunas 
                     ? `<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold"><i class="fas fa-check-circle mr-1"></i>Lunas</span>`
                     : `<span class="bg-rose-100 text-rose-800 text-xs px-2.5 py-1 rounded-full font-semibold"><i class="fas fa-clock mr-1"></i>Belum</span>`;
@@ -326,43 +326,49 @@
                 const photoUrl = s.photo || (s.gender === 'Perempuan' ? avatarPerempuan : avatarLaki);
 
                 html += `
-                    <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="showDetailModal('${s.id}')">
-                        <td class="px-4 py-3 font-medium text-gray-500">${index + 1}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex items-center space-x-3">
-                                <img src="${photoUrl}" class="w-10 h-10 rounded-full object-cover border border-emerald-500/30 flex-shrink-0" alt="Avatar">
-                                <div>
-                                    <div class="font-bold text-gray-800 hover:text-emerald-700">${s.name || '-'}</div>
-                                    <div class="text-xs text-gray-400">NIS: ${s.nis || '-'}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3">
-                            <div class="font-medium text-gray-700">${s.class || '-'}</div>
-                            <div class="text-xs text-emerald-600 font-semibold">${s.jilid || '-'}</div>
-                        </td>
-                        <td class="px-4 py-3">${s.parentPhone || '-'}</td>
-                        <td class="px-4 py-3 font-medium">${isLunas ? 'Rp 100.000' : 'Rp 0'}</td>
-                        <td class="px-4 py-3 text-center">${statusBadge}</td>
-                        <td class="px-4 py-3 text-center no-print" onclick="event.stopPropagation()">
-                            <div class="flex items-center justify-center gap-2">
-                                ${isLunas ? `
-                                    <button onclick="batalBayar('${s.id}', '${s.name}')" title="Batalkan / Reset Lunas" class="bg-gray-100 hover:bg-rose-100 text-rose-600 p-2 rounded-lg text-xs transition">
-                                        <i class="fas fa-undo"></i> Reset
-                                    </button>
-                                ` : `
-                                    <button onclick="openModal('${s.id}', '${s.name}')" title="Input Lunas Langsung" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-                                        <i class="fas fa-check mr-1"></i> Tandai Lunas
-                                    </button>
-                                    <button onclick="tagihWA('${s.parentPhone}', '${s.name}')" title="Kirim Tagihan WA" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs transition">
-                                        <i class="fab fa-whatsapp"></i>
-                                    </button>
-                                `}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
+        <tr class="hover:bg-emerald-50/50 transition cursor-pointer" onclick="showDetailModal('${s.id}')">
+            <!-- Kolom lainnya tetap sama -->
+            <td class="px-4 py-3 font-medium text-gray-500">${index + 1}</td>
+            <td class="px-4 py-3">
+                <div class="flex items-center space-x-3">
+                    <img src="${photoUrl}" class="w-10 h-10 rounded-full object-cover border border-emerald-500/30 flex-shrink-0" alt="Avatar">
+                    <div>
+                        <!-- Tetap gunakan s.name untuk tampilan teks -->
+                        <div class="font-bold text-gray-800 hover:text-emerald-700">${s.name || '-'}</div>
+                        <div class="text-xs text-gray-400">NIS: ${s.nis || '-'}</div>
+                    </div>
+                </div>
+            </td>
+            <!-- Kolom Kelas, No WA, Nominal, Status tetap sama -->
+            <td class="px-4 py-3">
+                <div class="font-medium text-gray-700">${s.class || '-'}</div>
+                <div class="text-xs text-emerald-600 font-semibold">${s.jilid || '-'}</div>
+            </td>
+            <td class="px-4 py-3">${s.parentPhone || '-'}</td>
+            <td class="px-4 py-3 font-medium">${isLunas ? 'Rp 100.000' : 'Rp 0'}</td>
+            <td class="px-4 py-3 text-center">${statusBadge}</td>
+            <td class="px-4 py-3 text-center no-print" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-center gap-2">
+                    ${isLunas ? `
+                        <!-- 2. Ganti s.name menjadi safeName pada aksi onclick -->
+                        <button onclick="batalBayar('${s.id}', '${safeName}')" title="Batalkan / Reset Lunas" class="bg-gray-100 hover:bg-rose-100 text-rose-600 p-2 rounded-lg text-xs transition">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    ` : `
+                        <!-- 2. Ganti s.name menjadi safeName pada aksi onclick -->
+                        <button onclick="openModal('${s.id}', '${safeName}')" title="Input Lunas Langsung" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                            <i class="fas fa-check mr-1"></i> Tandai Lunas
+                        </button>
+                        <!-- 2. Ganti s.name menjadi safeName pada aksi onclick -->
+                        <button onclick="tagihWA('${s.parentPhone}', '${safeName}')" title="Kirim Tagihan WA" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg text-xs transition">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    `}
+                </div>
+            </td>
+        </tr>
+    `;
+});
             tbody.innerHTML = html;
         }
 
