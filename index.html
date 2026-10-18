@@ -318,7 +318,7 @@
             let html = '';
             filtered.forEach((s, index) => {
                 const isLunas = s.infaqStatus === true || s.infaqStatus === 'Lunas';
-                const safeName = (s.name || '-').replace(/'/g, "\\'");
+                const safeName = (s.name || '-').replace(/'/g, "’").replace(/"/g, "”");
                 const statusBadge = isLunas 
                     ? `<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold"><i class="fas fa-check-circle mr-1"></i>Lunas</span>`
                     : `<span class="bg-rose-100 text-rose-800 text-xs px-2.5 py-1 rounded-full font-semibold"><i class="fas fa-clock mr-1"></i>Belum</span>`;
