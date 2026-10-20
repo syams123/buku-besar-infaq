@@ -444,28 +444,44 @@
         }
 
         // Reset Status Lunas
-        async function batalBayar(id, name) {
-            const res = await Swal.fire({
-                title: 'Reset Pembayaran?',
-                text: `Status infaq ananda ${name} akan dikembalikan ke Belum Bayar.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Ya, Reset'
+        // Reset Status Lunas dari Buku Besar
+async function batalBayar(id, name) {
+    const res = await Swal.fire({
+        title: 'Reset Pembayaran?',
+        text: `Status infaq ananda ${name} akan dikembalikan ke Belum Bayar.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Ya, Reset'
+    });
+
+    if (res.isConfirmed) {
+        try {
+            const periode = getPeriodeAktif();
+            const studentRef = db.collection('students').doc(id);
+            const batch = db.batch();
+
+            // 1. Reset dokumen utama santri
+            batch.update(studentRef, {
+                infaqStatus: false,
+                paymentMethod: firebase.firestore.FieldValue.delete(),
+                lastConfirmation: firebase.firestore.FieldValue.delete(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            if (res.isConfirmed) {
-                try {
-                    await db.collection('students').doc(id).update({
-                        infaqStatus: false,
-                        paymentMethod: firebase.firestore.FieldValue.delete()
-                    });
-                    Swal.fire('Berhasil', 'Status pembayaran telah di-reset.', 'success');
-                } catch (err) {
-                    Swal.fire('Error', err.message, 'error');
-                }
-            }
+            // 2. Hapus catatan pembayaran di sub-collection
+            const paymentRef = studentRef.collection('payments').doc(periode);
+            batch.delete(paymentRef);
+
+            await batch.commit();
+
+            Swal.fire('Berhasil', 'Status pembayaran telah di-reset.', 'success');
+            refreshData();
+        } catch (err) {
+            Swal.fire('Error', err.message, 'error');
         }
+    }
+}
 
         // Pesan WA Pengingat
         function tagihWA(phone, name) {
