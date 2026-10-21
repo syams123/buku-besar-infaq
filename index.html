@@ -39,9 +39,6 @@
                 <button onclick="window.print()" class="bg-emerald-800 hover:bg-emerald-900 text-white text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition">
                     <i class="fas fa-print"></i> Cetak Laporan
                 </button>
-                <button onclick="logoutBukuBesar()" title="Keluar" class="bg-emerald-800 hover:bg-rose-700 text-white text-xs px-3 py-2 rounded-lg flex items-center gap-1 transition">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
             </div>
         </div>
     </header>
@@ -126,7 +123,7 @@
                         <tr>
                             <td colspan="7" class="text-center py-8 text-gray-400">
                                 <i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i>
-                                <p class="mt-2 text-xs">Menunggu login Superadmin...</p>
+                                <p class="mt-2 text-xs">Menghubungkan ke Portal Si Barok...</p>
                             </td>
                         </tr>
                     </tbody>
@@ -243,80 +240,35 @@
         const avatarPerempuan = 'https://i.imgur.com/NcNQ9R3.jpeg';
 
         // =====================================================================
-        // LOGIN SUPERADMIN (wajib, agar Firestore mengizinkan pembacaan data)
+        // KONEKSI OTOMATIS (tanpa popup login)
+        // - Jika sudah ada sesi login (mis. Ustadzah Fika di portal pada domain
+        //   yang sama), sesi itu langsung dipakai.
+        // - Jika belum ada, masuk otomatis sebagai pengguna anonim agar lolos
+        //   aturan Firestore (request.auth != null).
         // =====================================================================
         function setTabelPesan(html) {
             document.getElementById('santriTableBody').innerHTML =
                 `<tr><td colspan="7" class="text-center py-8 text-gray-400">${html}</td></tr>`;
         }
 
-        async function tampilkanFormLogin() {
-            await Swal.fire({
-                title: 'Login Superadmin',
-                html:
-                    '<input id="lgEmail" type="email" class="swal2-input" placeholder="Email" autocomplete="username">' +
-                    '<input id="lgPass" type="password" class="swal2-input" placeholder="Password" autocomplete="current-password">',
-                confirmButtonText: 'Masuk',
-                confirmButtonColor: '#059669',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showLoaderOnConfirm: true,
-                preConfirm: async () => {
-                    const email = document.getElementById('lgEmail').value.trim();
-                    const pass = document.getElementById('lgPass').value;
-                    if (!email || !pass) {
-                        Swal.showValidationMessage('Email dan password wajib diisi');
-                        return false;
-                    }
-                    try {
-                        await auth.signInWithEmailAndPassword(email, pass);
-                    } catch (e) {
-                        let msg = e.message;
-                        if (['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(e.code)) {
-                            msg = 'Email atau password salah';
-                        } else if (e.code === 'auth/network-request-failed') {
-                            msg = 'Koneksi internet bermasalah';
-                        }
-                        Swal.showValidationMessage(msg);
-                        return false;
-                    }
-                }
-            });
-            // Setelah berhasil, onAuthStateChanged akan jalan otomatis
-        }
-
         auth.onAuthStateChanged(async (user) => {
-            if (!user) {
-                if (unsubscribeSantri) { unsubscribeSantri(); unsubscribeSantri = null; }
-                santriList = [];
-                setTabelPesan('<i class="fas fa-lock text-2xl text-emerald-600"></i><p class="mt-2 text-xs">Silakan login sebagai Superadmin.</p>');
-                tampilkanFormLogin();
+            if (user) {
+                refreshData();
                 return;
             }
 
-            setTabelPesan('<i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i><p class="mt-2 text-xs">Memeriksa hak akses...</p>');
-
+            setTabelPesan('<i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600"></i><p class="mt-2 text-xs">Menghubungkan ke Portal Si Barok...</p>');
             try {
-                // Hanya Superadmin yang boleh membuka Buku Besar
-                const u = await db.collection('users').doc(user.uid).get();
-                if (!u.exists || u.data().role !== 'superadmin') {
-                    await auth.signOut();
-                    await Swal.fire('Akses Ditolak', 'Halaman ini khusus Superadmin.', 'error');
-                    return; // signOut memicu onAuthStateChanged lagi -> form login muncul
-                }
+                await auth.signInAnonymously(); // setelah berhasil, onAuthStateChanged jalan lagi
             } catch (e) {
                 console.error(e);
-                setTabelPesan(`<span class="text-red-500">Gagal memeriksa hak akses (${e.code || 'error'}). ${e.message}</span>`);
-                return;
+                let pesan = e.message;
+                if (e.code === 'auth/operation-not-allowed' || e.code === 'auth/admin-restricted-operation') {
+                    pesan = 'Login Anonymous belum diaktifkan di Firebase. Buka Firebase Console → Authentication → Sign-in method → aktifkan "Anonymous".';
+                }
+                setTabelPesan(`<span class="text-red-500">Gagal terhubung (${e.code || 'error'}).</span><br><span class="text-xs text-gray-500">${pesan}</span>`);
             }
-
-            refreshData();
         });
-
-        async function logoutBukuBesar() {
-            if (unsubscribeSantri) { unsubscribeSantri(); unsubscribeSantri = null; }
-            await auth.signOut();
-        }
 
         // =====================================================================
         // PERIODE AKTIF
